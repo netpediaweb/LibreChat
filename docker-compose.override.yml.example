@@ -60,6 +60,12 @@
 #       source: ./your_cert.pem
 #       target: /app/your_cert.pem
 
+# # ENABLE PISTON RUN CODE (SELF-HOSTED)
+#   api:
+#     environment:
+#       - PISTON_PROXY_BASEURL=http://piston-proxy:3001
+#       - PISTON_PROXY_API_KEY=replace_with_proxy_key
+
 # # ADD MONGO-EXPRESS
 #   mongo-express:
 #     image: mongo-express

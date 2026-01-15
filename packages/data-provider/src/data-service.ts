@@ -4,6 +4,7 @@ import * as endpoints from './api-endpoints';
 import * as a from './types/assistants';
 import * as ag from './types/agents';
 import * as m from './types/mutations';
+import * as p from './types/piston';
 import * as q from './types/queries';
 import * as f from './types/files';
 import * as mcp from './types/mcpServers';
@@ -353,6 +354,16 @@ export const getToolCalls = (params: q.GetToolCallParams): Promise<q.ToolCallRes
       options: params,
     }),
   );
+};
+
+export const getPistonRuntimes = (): Promise<p.TPistonRuntimesResponse> => {
+  return request.get(endpoints.pistonRuntimes());
+};
+
+export const executePiston = (
+  payload: p.TPistonExecuteRequest,
+): Promise<p.TPistonExecuteResponse> => {
+  return request.post(endpoints.pistonExecute(), payload);
 };
 
 /* Files */

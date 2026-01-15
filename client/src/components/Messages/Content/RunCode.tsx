@@ -4,7 +4,7 @@ import { TerminalSquareIcon } from 'lucide-react';
 import { Tools, AuthType } from 'librechat-data-provider';
 import { Spinner, useToastContext } from '@librechat/client';
 import type { CodeBarProps } from '~/common';
-import { useVerifyAgentToolAuth, useToolCallMutation } from '~/data-provider';
+import { useVerifyAgentToolAuth, useToolCallMutation, useGetStartupConfig, usePistonExecuteMutation } from '~/data-provider';
 import ApiKeyDialog from '~/components/SidePanel/Agents/Code/ApiKeyDialog';
 import { useLocalize, useCodeApiKeyForm } from '~/hooks';
 import { useMessageContext } from '~/Providers';
@@ -13,18 +13,44 @@ import { cn, normalizeLanguage } from '~/utils';
 const RunCode: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, blockIndex }) => {
   const localize = useLocalize();
   const { showToast } = useToastContext();
+  const { data: startupConfig } = useGetStartupConfig();
+  const pistonEnabled = Boolean(startupConfig?.piston?.enabled);
   const execute = useToolCallMutation(Tools.execute_code, {
     onError: () => {
       showToast({ message: localize('com_ui_run_code_error'), status: 'error' });
     },
   });
+  const pistonExecute = usePistonExecuteMutation();
 
   const { messageId, conversationId, partIndex } = useMessageContext();
   const normalizedLang = useMemo(() => normalizeLanguage(lang), [lang]);
+  const resolvedLang = useMemo(() => {
+    if (normalizedLang) {
+      return normalizedLang;
+    }
+    const fallback = typeof lang === 'string' ? lang.toLowerCase().trim() : '';
+    if (!fallback || fallback === 'text' || fallback === 'plaintext') {
+      return 'py';
+    }
+    return '';
+  }, [normalizedLang, lang]);
+  const pistonLanguage = useMemo(() => {
+    const mapping: Record<string, string> = {
+      py: 'python',
+      js: 'javascript',
+      bash: 'bash',
+      go: 'go',
+      rs: 'rust',
+      c: 'c',
+      cpp: 'cpp',
+    };
+    return mapping[resolvedLang] ?? resolvedLang;
+  }, [resolvedLang]);
   const { data } = useVerifyAgentToolAuth(
     { toolId: Tools.execute_code },
     {
       retry: 1,
+      enabled: !pistonEnabled,
     },
   );
   const authType = useMemo(() => data?.message ?? false, [data?.message]);
@@ -33,7 +59,7 @@ const RunCode: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, blockIndex 
     useCodeApiKeyForm({});
 
   const handleExecute = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (!pistonEnabled && !isAuthenticated) {
       setIsDialogOpen(true);
       return;
     }
@@ -41,9 +67,23 @@ const RunCode: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, blockIndex 
     if (
       typeof codeString !== 'string' ||
       codeString.length === 0 ||
-      typeof normalizedLang !== 'string' ||
-      normalizedLang.length === 0
+      typeof resolvedLang !== 'string' ||
+      resolvedLang.length === 0
     ) {
+      return;
+    }
+
+    if (pistonEnabled) {
+      pistonExecute.mutate({
+        partIndex,
+        messageId,
+        blockIndex,
+        conversationId: conversationId ?? '',
+        language: pistonLanguage,
+        version: '*',
+        code: codeString,
+        stdin: '',
+      });
       return;
     }
 
@@ -52,19 +92,22 @@ const RunCode: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, blockIndex 
       messageId,
       blockIndex,
       conversationId: conversationId ?? '',
-      lang: normalizedLang,
+      lang: resolvedLang,
       code: codeString,
     });
   }, [
     codeRef,
     execute,
+    pistonExecute,
     partIndex,
     messageId,
     blockIndex,
     conversationId,
-    normalizedLang,
+    resolvedLang,
+    pistonLanguage,
     setIsDialogOpen,
     isAuthenticated,
+    pistonEnabled,
   ]);
 
   const debouncedExecute = useMemo(
@@ -78,9 +121,11 @@ const RunCode: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, blockIndex 
     };
   }, [debouncedExecute]);
 
-  if (typeof normalizedLang !== 'string' || normalizedLang.length === 0) {
+  if (!resolvedLang) {
     return null;
   }
+
+  const isLoading = pistonEnabled ? pistonExecute.isLoading : execute.isLoading;
 
   return (
     <>
@@ -88,25 +133,27 @@ const RunCode: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, blockIndex 
         type="button"
         className={cn('ml-auto flex gap-2 rounded-sm focus:outline focus:outline-white')}
         onClick={debouncedExecute}
-        disabled={execute.isLoading}
+        disabled={isLoading}
       >
-        {execute.isLoading ? (
+        {isLoading ? (
           <Spinner className="animate-spin" size={18} />
         ) : (
           <TerminalSquareIcon size={18} aria-hidden="true" />
         )}
         {localize('com_ui_run_code')}
       </button>
-      <ApiKeyDialog
-        onSubmit={onSubmit}
-        isOpen={isDialogOpen}
-        register={methods.register}
-        onRevoke={handleRevokeApiKey}
-        onOpenChange={setIsDialogOpen}
-        handleSubmit={methods.handleSubmit}
-        isToolAuthenticated={isAuthenticated}
-        isUserProvided={authType === AuthType.USER_PROVIDED}
-      />
+      {!pistonEnabled && (
+        <ApiKeyDialog
+          onSubmit={onSubmit}
+          isOpen={isDialogOpen}
+          register={methods.register}
+          onRevoke={handleRevokeApiKey}
+          onOpenChange={setIsDialogOpen}
+          handleSubmit={methods.handleSubmit}
+          isToolAuthenticated={isAuthenticated}
+          isUserProvided={authType === AuthType.USER_PROVIDED}
+        />
+      )}
     </>
   );
 });
