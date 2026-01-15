@@ -6,6 +6,7 @@ export const languages = new Set([
   'asc',
   'atom',
   'bat',
+  'bash',
   'bf',
   'bind',
   'c++',
@@ -354,6 +355,7 @@ export const langSubset = [
 ];
 
 enum Languages {
+  bash = 'bash',
   c = 'c',
   cpp = 'cpp',
   d = 'd',
@@ -369,6 +371,11 @@ enum Languages {
 
 // Create a mapping of common variations to the enum values
 const languageAliases: Record<string, Languages | undefined> = {
+  // Bash
+  bash: Languages.bash,
+  sh: Languages.bash,
+  shell: Languages.bash,
+
   // C
   c: Languages.c,
 

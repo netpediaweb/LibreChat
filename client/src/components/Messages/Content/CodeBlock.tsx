@@ -8,8 +8,10 @@ import ResultSwitcher from '~/components/Messages/Content/ResultSwitcher';
 import { useToolCallsMapContext, useMessageContext } from '~/Providers';
 import { LogContent } from '~/components/Chat/Messages/Content/Parts';
 import RunCode from '~/components/Messages/Content/RunCode';
+import PistonOutput from '~/components/Messages/Content/PistonOutput';
 import { useLocalize } from '~/hooks';
 import cn from '~/utils/cn';
+import type { TPistonExecuteResponse } from 'librechat-data-provider';
 
 type CodeBlockProps = Pick<
   CodeBarProps,
@@ -98,6 +100,13 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
   }, [fetchedToolCalls]);
 
   const currentToolCall = useMemo(() => toolCalls?.[currentIndex], [toolCalls, currentIndex]);
+  const toolResult = currentToolCall?.result;
+  const isPistonResult = (value: unknown): value is TPistonExecuteResponse => {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+    return 'ok' in value;
+  };
 
   const next = () => {
     if (!toolCalls) {
@@ -146,13 +155,17 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
                 color: 'white',
               }}
             >
-              <pre className="shrink-0">
-                <LogContent
-                  output={(currentToolCall?.result as string | undefined) ?? ''}
-                  attachments={currentToolCall?.attachments ?? []}
-                  renderImages={true}
-                />
-              </pre>
+              {isPistonResult(toolResult) ? (
+                <PistonOutput result={toolResult} />
+              ) : (
+                <pre className="shrink-0">
+                  <LogContent
+                    output={(toolResult as string | undefined) ?? ''}
+                    attachments={currentToolCall?.attachments ?? []}
+                    renderImages={true}
+                  />
+                </pre>
+              )}
             </div>
           </div>
           {toolCalls.length > 1 && (

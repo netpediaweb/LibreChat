@@ -700,6 +700,9 @@ export type TStartupConfig = {
     }
   >;
   mcpPlaceholder?: string;
+  piston?: {
+    enabled: boolean;
+  };
   conversationImportMaxFileSize?: number;
 };
 

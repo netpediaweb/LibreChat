@@ -160,6 +160,28 @@ Click on the thumbnail to open the video☝️
 
 ---
 
+## 🧪 Piston Run Code (Self-Hosted)
+
+LibreChat can route the **Run Code** button through a self-hosted Piston proxy. Configure these env vars on the API container:
+
+```bash
+PISTON_PROXY_BASEURL=http://localhost:3001
+PISTON_PROXY_API_KEY=replace_with_proxy_key
+```
+
+Once configured, test the proxy-backed endpoints (authenticated session required):
+
+```bash
+curl -s -H "Cookie: <your_session_cookie>" http://localhost:3080/api/piston/runtimes
+
+curl -s -H "Cookie: <your_session_cookie>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"language":"python","version":"*","code":"print(2+2)","stdin":""}' \\
+  http://localhost:3080/api/piston/execute
+```
+
+---
+
 ## 📝 Changelog
 
 Keep up with the latest updates by visiting the releases page and notes:
